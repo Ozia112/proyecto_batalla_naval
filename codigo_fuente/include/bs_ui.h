@@ -5,39 +5,39 @@
 
 // Function prototypes
 
-void pantalla_bienvenida();
+void tittle_screen();
 
-void menu_principal();
+void main_menu(struct player *player1, struct player *player2);
 
-void reglas();
+void rules();
 
-void solicitar_nombre(struct player *player);
+void get_name(struct player *player);
 
-void tablero_colocar_barcos(struct player *player, int index);
+void set_ships_screen(struct player *player, int index, struct player *enemy);
 
-void flow_colocar_barcos(struct player *player);
+void set_ships_flow(struct player *player, struct player *enemy);
 
-void imprimirTablero(struct player *player);
+void printCurrentPlayerBoard(struct player *player, struct player *enemy);
 
-void ponerBarcos(struct player *player, int index);
+void getSetShipsCoords(struct player *player, int index, struct player *enemy);
 
-void mostrar_turno_y_tablero_G(struct player *player, struct player *enemy);
+void currentPlayerWarScreen(struct player *player, struct player *enemy);
 
-void imprimirTableroGuerra(struct player *player, struct player *enemy);
+void printCurrentPlayerWarBoard(struct player *player, struct player *enemy);
 
-void imprimirReporteBarcosEnemigos(struct player *player, struct player *enemy);
+void printEnemyFleetReport(struct player *player, struct player *enemy);
 
-void imprimirReporteBarcos(struct player *player, struct player *enemy);
+void printFleetReport(struct player *player, struct player *enemy);
 
-void mostrar_turno_y_tablero(struct player *player);
+void currentPlayerScreen(struct player *player, struct player *enemy);
 
-void mostrar_info_carta(struct cartas *carta);
+void printCardInfo(struct card *cards);
 
-void capturar_coordenada(struct player *player, struct player *enemy);
+void captureCoordToShot(struct player *player, struct player *enemy);
 
-void mostrar_ultimo_disparo_exitoso(struct player *player);
+void printPrevHitCoord(struct player *player);
 
-void mostrar_bomb_cheq_exitoso(struct player *player);
+void printBombORCheckSucces(struct player *player);
 
-void capturar_fila_columna(struct player *player, struct player *enemy);
+void captrRowORColumn(struct player *player, struct player *enemy);
 #endif // BS_UI_H

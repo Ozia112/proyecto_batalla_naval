@@ -4,7 +4,7 @@
 #include "master.h"
 
 // Prototipos de funciones
-static void shot_flow(struct player *player, struct player *enemy, int count);
+static void shot_flow(struct player *player, struct player *enemy, int shoots);
 
 static void end_card_flow(struct player *player, struct player *enemy);
 

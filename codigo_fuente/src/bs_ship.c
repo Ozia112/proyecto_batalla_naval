@@ -1,106 +1,78 @@
-
 #include "bs_ship.h" // Incluye definiciones de barcos
 
-void inicializar_flota(struct player *player) {
-    // Inicializar barcos del jugador
-    for (int idx_ship = 0; idx_ship < NUM_SHIPS; idx_ship++) {
-        player->ships[idx_ship].id = idx_ship; // Asignar ID del barco
-        switch (idx_ship) {
-            case 0:
-                strcpy(player->ships[idx_ship].name, "Portaaviones");
-                inicializar_barco(&player->ships[idx_ship], 5); // Inicializar barco de 5 partes
-                break;
-            case 1:
-                strcpy(player->ships[idx_ship].name, "Acorazado");
-                inicializar_barco(&player->ships[idx_ship], 4); // Inicializar barco de 4 partes
-                break;
-            case 2:
-                strcpy(player->ships[idx_ship].name, "Crucero");
-                inicializar_barco(&player->ships[idx_ship], 3); // Inicializar barco de 3 partes
-                break;
-            case 3:
-                strcpy(player->ships[idx_ship].name, "Destructor");
-                inicializar_barco(&player->ships[idx_ship], 3); // Inicializar barco de 3 partes
-                break;
-            case 4:
-                strcpy(player->ships[idx_ship].name, "Fragata");
-                inicializar_barco(&player->ships[idx_ship], 2); // Inicializar barco de 2 partes
-                break;
-        }
-    }
-}
 
-void inicializar_barco(struct ship *barco, int size) {
-    barco-> size = size;
-    barco->direction = 'U'; // No definido
-    barco->vivo = true; // Barco está vivo al inicio
 
-    // Reservar memoria para el estado del barco.
-    barco->status = (int **)malloc(size * sizeof(int *));
-    for (int s_part = 0; s_part < size; s_part++) {
-        barco->status[s_part] = (int *)malloc(3 * sizeof(int)); // 3 columnas para x, y y estado
-        barco->status[s_part][CC_FILA] = -1; // Inicializar coordenadas x a -1
-        barco->status[s_part][CC_COLUMNA] = -1; // Inicializar coordenadas y a -1
-        barco->status[s_part][CC_STATUS] = 0; // Inicializar estado a 0 (agua)
-    }
-}
-
-bool posicion_barco(struct player *player, int index, int s_part, int fila, int columna) {
+bool isShipHere(struct player *player, int index, int ship_cell, int fila, int columna) {
     // Verifica si la parte del barco esta en la posicion (x, y)
-    return player->ships[index].status[s_part][0] == fila
-        && player->ships[index].status[s_part][1] == columna;
+    return player->ships[index].status[ship_cell][0] == fila
+        && player->ships[index].status[ship_cell][1] == columna;
 }
 
-bool posicion_barco_enemy(struct player *player, int index, int s_part, struct player *enemy) {
-    return enemy->ships[index].status[s_part][CC_FILA] == player->last_input_fila
-        && enemy->ships[index].status[s_part][CC_COLUMNA] == player->last_input_columna;
+bool isEnemyShipHere(struct player *player, int index, int ship_cell, struct player *enemy) {
+    return enemy->ships[index].status[ship_cell][CC_ROW] == player->prevRowInput
+        && enemy->ships[index].status[ship_cell][CC_COLUMN] == player->prevColInput;
 }
 
-bool casilla_saludable(struct player *enemy, int index, int s_part) {
-    return enemy->ships[index].status[s_part][CC_STATUS] == SHIP_STER || enemy->ships[index].status[s_part][CC_STATUS] == SHIP_BODY;
+bool cell_is_intact_ship_cell(struct player *enemy, int index, int ship_cell) {
+    if (enemy->ships[index].status[ship_cell][CC_STATUS] == SHIP_STER) return true;
+    if (enemy->ships[index].status[ship_cell][CC_STATUS] == SHIP_BODY) return true;
+    return false;
 }
 
-void hundir_barco_buff(struct player *player, int index, struct player *enemy) {
-    for (int s_part = 0; s_part < enemy->ships[index].size; s_part++) {
-        if (casilla_saludable(enemy, index, s_part)) {
-            enemy->ships[index].status[s_part][CC_STATUS] += 2; // Cambiar estado a dañado
-            player->enemy_hit_parts++; // Incrementar partes alcanzadas
-            player->aciertos_por_turno++; // Incrementar aciertos por turno
+void instant_sunk(struct player *player, int index, struct player *enemy) {
+    int i, j;
+
+    for (i = 0; i < BOARD_SIZE; i++) {
+        for (j = 0; j < BOARD_SIZE; j++) {
+            if (enemy->board[i][j].ship_id == index) {
+                if(cell_is_intact_ship_cell(enemy, index, enemy->board[i][j].ship_cell)) {
+                    enemy->board[i][j].status = SHIP_STER_D;
+                }
+                if (cell_is_intact_ship_cell(enemy, index, enemy->board[i][j].ship_cell)) {
+                    enemy->board[i][j].status = SHIP_BODY_D;
+                }
+                player->enemy_hit_parts++; // Incrementar partes alcanzadas
+                get_remain_fleet_cells(enemy); // Actualizar partes restantes
+                player->hitsInTurn++; // Incrementar aciertos por turno
+            }
         }
     }
-    hundido(player, enemy); // Verifica si el barco está hundido
+    for (i = 0; i < enemy->ships[index].ship_size; i++) {
+        if (cell_is_intact_ship_cell(enemy, index, i)) {
+            enemy->ships[index].status[i][CC_STATUS] += 2; // Cambiar estado a dañado
+        }
+    }
+    is_sunk(player, enemy, index); // Verifica si el barco está hundido
 }
 
-void hundido(struct player *player, struct player *enemy) {
-    for (int i = 0; i < NUM_SHIPS; i++) {
-        if (enemy->ships[i].vivo) {
-            bool hundido = true;
-            for (int j = 0; j < enemy->ships[i].size; j++) {
-                if (enemy->ships[i].status[j][2] != 3 && enemy->ships[i].status[j][2] != 4) {
-                    hundido = false; // Si alguna parte no está dañada, no se hunde
-                    break;
-                }
-            }
-            if (hundido) {
-                enemy->ships[i].vivo = false; // Barco hundido
-                player->sunked_ships++;
-                printf("El barco %d ha sido hundido.\n", i + 1);
-                // Desactivar salvo si estaba activo
-                if (enemy->salvo) {
-                    enemy->salvo = false;
-                    printf("El modo Salvo enemigo se "); color_txt(INFO_COLOR); printf("desactiva.\n");
+void is_sunk(struct player *player, struct player *enemy, int index) {
+    int i, j;
+
+    for (i = 0; i < BOARD_SIZE; i++) {
+        for (j = 0; j < BOARD_SIZE; j++) {
+            if (enemy->board[i][j].ship_id == index) {
+                if (cell_is_intact_ship_cell(enemy, index, enemy->board[i][j].ship_cell)) {
+                    enemy->ships[index].is_alive = true; // Marcar barco como hundido
+                    return; // Salir si se encuentra una parte intacta
                 }
             }
         }
+    }
+    enemy->ships[index].is_alive = false; // Marcar barco como hundido
+    player->sunken_ships++;
+    printf("El %s (%d) enemigo ha sido hundido.\n", enemy->ships[index].ship_name, enemy->ships[index].ship_id + 1);
+    if (enemy->salvo_mode) {
+        enemy->salvo_mode = false; // Desactivar Salvo si estaba activo
+        printf("El modo Salvo enemigo se "); color_txt(INFO_COLOR); printf("desactiva.\n"); color_txt(DEFAULT_COLOR);
     }
 }
 
 void liberar_status(struct ship *barco) {
-    for (int i = 0; i < barco->size; i++) {
+    for (int i = 0; i < barco->ship_size; i++) {
         free(barco->status[i]);
     }
     free(barco->status);
-    barco->status = NULL; // Evitar puntero colgante
+    barco->status = EMPTY; // Evitar puntero colgante
 }
 
 void liberar_flota(struct player *player) {

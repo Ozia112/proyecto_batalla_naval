@@ -4,21 +4,19 @@
 #include "master.h" // Libreria con todas las cabeceras del proyecto.
 
 // Prototipos de funciones
+void init_struct_player(struct player *player);
 
-bool procesar_coordenadas(struct player *player, int index, int filaInicio, int filaFin, int columnaInicio, int columnaFin);
+bool coords_validation(struct player *player, int index, int rowIn, int rowEnd, int columnIn, int columnEnd);
 
-void colocar_casilla_inicial_en_tablero(struct player *player, int index, int filaIn, int columnaIn);
+void set_initial_cell(struct player *player, int index, int rowIn, int columnIn);
 
-void colocar_barco_en_tablero(struct player *player, int index, int filaInicio, int filaFin, int columnaInicio, int columnaFin);
+void set_ship(struct player *player, int index, int rowIn, int rowEnd, int columnIn, int columnEnd);
 
-void decidir_primer_turno(struct player *player1, struct player *player2);
+void firstTurnRand(struct player *player1, struct player *player2);
 
-int obtener_id_aleatoria(struct player *player);
+int pickRandCard(struct player *player);
 
-int calcular_peso_total(struct player *player);
+int calcTotalWeight(struct player *player);
 
-bool validar_movimiento(struct player *player_i, struct ship *ship_i);
-
-
-
+bool parsing_coords(const char *input, int *row, int *col);
 #endif // BS_LOGIC_H

@@ -2,270 +2,138 @@
 
 // Administrar colocacion y movimiento de barcos
 
-bool validar_cc_rango(int cc_fila, int cc_columna) {
-    if (cc_fila >= 0 && cc_fila < BOARD_SIZE && 
-        cc_columna >= 0 && cc_columna < BOARD_SIZE) {
+bool in_range(int cc_row, int cc_column) {
+    if (cc_row >= 0 && cc_row < BOARD_SIZE && 
+        cc_column >= 0 && cc_column < BOARD_SIZE) {
         return true; // Coordenadas válidas
     }
-    if (cc_fila < 0 || cc_fila >= BOARD_SIZE) {
-        color_txt(ERROR_COLOR);
-        printf("Coordenada fuera de rango(Fila).");
-
-    } else if (cc_columna < 0 || cc_columna >= BOARD_SIZE) {
-        color_txt(ERROR_COLOR);
-        printf("Coordenada fuera de rango(Columna).");
-    }
-    color_txt(INFO_COLOR); printf(" CodeError: 1\n");
-    color_txt(DEFAULT_COLOR);
-    color_txt(ERROR_COLOR);
-    printf("Intente de nuevo.\n");
-    color_txt(DEFAULT_COLOR);
+    codeError(EMPTY, OUT_OF_RANGE, -1, cc_row, cc_column);
     return false;
 }
 
-bool validar_solapamiento_inicial(struct player *player, int index, int filaInicio, int columnaInicio) {
-    int i, x, y, idx_ship, s_part;
+bool first_coord_is_free(struct player *player, int index, int rowIn, int columnIn) {
+    int index_ship, ship_cell;
 
-    for (idx_ship = 0; idx_ship < player->placed_ships; idx_ship++) {
-        for (s_part = 0; s_part < player->ships[idx_ship].size; s_part++) {
-            if (posicion_barco(player, idx_ship, s_part, filaInicio, columnaInicio)) {
-                color_txt(ERROR_COLOR);
-                printf("Solapamiento detectado en"); color_txt(INFO_COLOR); printf(" %d,%d", filaInicio, columnaInicio);
-                color_txt(DEFAULT_COLOR); printf(" con el barco %d", idx_ship + 1);
-                color_txt(INFO_COLOR); printf(" CodeError: 4\n"); color_txt(DEFAULT_COLOR);
-                color_txt(ERROR_COLOR);
-                printf("Intente de nuevo.\n");
-                color_txt(DEFAULT_COLOR);
-                return false; // Hay solapamiento
-            }
-        }
+    if (player->board[rowIn][columnIn].is_water == true) {
+        return true;
     }
-    return true; // No hay solapamiento
+    codeError(player, OVERLAP_DETECTED, index, rowIn, columnIn);
+    return false; // Marca si la celda esta ocupada
 }
 
-bool validar_orientacion(struct player *player, int index, int filaInicio, int filaFin, int columnaInicio, int columnaFin) {
-    if (!(filaInicio == filaFin || columnaInicio == columnaFin)) {
-        color_txt(ERROR_COLOR);
-        printf("Orientacion no permitida, el barco debe ser horizontal o vertical."); color_txt(INFO_COLOR); printf(" CodeError: 2\n");
-        color_txt(DEFAULT_COLOR);
-        color_txt(ERROR_COLOR);
-        printf("Intente de nuevo.\n");
-        color_txt(DEFAULT_COLOR);
-        return false;
-    } else { // Si la orientación es válida, asignar la dirección.
-        if (filaInicio == filaFin) {
-            player->ships[index].direction = (columnaInicio < columnaFin) ? 'E' : 'O';
-        } else if (columnaInicio == columnaFin) {
-            player->ships[index].direction = (filaInicio < filaFin) ? 'S' : 'N';
-        } else {
-            player->ships[index].direction = 'U'; // No debería ocurrir si las validaciones son correctas
-        }
+bool is_straight(struct player *player, int index, int rowIn, int rowEnd, int columnIn, int columnEnd) {
+    if (rowIn == rowEnd) {
+        player->ships[index].ship_direction = (columnIn < columnEnd) ? 'E' : 'O';
+        return true; // Orientación válida
+    } 
+    if(columnIn == columnEnd) {
+        player->ships[index].ship_direction = (rowIn < rowEnd) ? 'S' : 'N';
         return true; // Orientación válida
     }
+    player->ships[index].ship_direction = 'U'; // No debería ocurrir si las validaciones son correctas
+    codeError(EMPTY, INVALID_DIRECTION, index, -1, -1);
+    return false;
 }
 
-bool validar_dimension( struct player *player, int index, int filaInicio, int filaFin, int columnaInicio, int columnaFin) {
-    int dimension_actual;
+bool dim_match_index( struct player *player, int index, int rowIn, int rowEnd, int columnIn, int columnEnd) {
 
-    if (player->ships[index].direction == 'E' || player->ships[index].direction == 'O') {
-        dimension_actual = abs(columnaFin - columnaInicio) + 1;
-    } else {
-        dimension_actual = abs(filaFin - filaInicio) + 1;
-    }
-    if (dimension_actual != player->ships[index].size) {
-        color_txt(ERROR_COLOR);
-        printf("Las coordenadas no son validas. El barco debe tener"); color_txt(INFO_COLOR); printf(" %d", player->ships[index].size);
-        color_txt(ERROR_COLOR); printf(" celdas de longitud.", player->ships[index].size); color_txt(INFO_COLOR); printf(" CodeError: 3\n");
-        color_txt(DEFAULT_COLOR);
-        color_txt(ERROR_COLOR);
-        printf("Intente de nuevo.\n");
-        color_txt(DEFAULT_COLOR);
-        return false;
-    }
-    return true; // Dimensión válida
+    if (abs(rowEnd - rowIn) == player->ships[index].ship_size - 1) return true; // Dimensión válida
+    if (abs(columnEnd - columnIn) == player->ships[index].ship_size - 1) return true; // Dimensión válida    
+    
+    codeError(player, INVALID_DIMENSION, index, 0, 0);
+    return false;
 }
 
-bool validar_solapamiento(struct player *player, int index, int filaInicio, int filaFin, int columnaInicio, int columnaFin) {
-    int i, x, y, idx_ship, s_part;
-    int b_f, b_c;
-    // Recorre todas las posiciones que ocuparía el nuevo barco
-    if (player->ships[index].direction == 'E' || player->ships[index].direction == 'O') {
-        // Horizontal
-        for (b_c = columnaInicio; (player->ships[index].direction == 'E') ? (b_c <= columnaFin) : (b_c >= columnaFin); (player->ships[index].direction == 'E') ? b_c++ : b_c--) {
-            x = filaInicio;
-            y = b_c;
-            // Compara contra todos los barcos ya colocados
-            for (idx_ship = 0; idx_ship < player->placed_ships; idx_ship++) {
-                for (s_part = 0; s_part < player->ships[idx_ship].size; s_part++) {
-                    // Solo compara si la casilla ya fue asignada (no -1)
-                    if (posicion_barco(player, idx_ship, s_part, x, y)) {
-                        color_txt(ERROR_COLOR);
-                        printf("Solapamiento detectado en"); color_txt(INFO_COLOR); printf(" %d,%d", x, y); 
-                        color_txt(DEFAULT_COLOR); printf(" con el barco %d", idx_ship + 1);
-                        color_txt(INFO_COLOR); printf(" CodeError: 4\n"); color_txt(DEFAULT_COLOR);
-                        color_txt(ERROR_COLOR);
-                        printf("Intente de nuevo.\n");
-                        color_txt(DEFAULT_COLOR);
-                        return false; // Hay solapamiento
-                    }
-                }
+bool end_cell_is_water(struct player *player, int index, int rowIn, int rowEnd, int columnIn, int columnEnd) {
+    int i;
+
+    if (player->ships[index].ship_direction == 'E' || player->ships[index].ship_direction == 'O') {
+        for (int i = columnIn + 1; i <= columnEnd; i++) {
+            if (player->board[rowIn][i].is_water == false) {
+                codeError(player, OVERLAP_DETECTED, index, rowIn, i);
+                return false; // La celda final no es agua
             }
         }
     } 
-    else {
-    // Vertical
-        for (b_f = filaInicio; player->ships[index].direction == 'S' ? b_f <= filaFin : b_f >= filaFin; player->ships[index].direction == 'S' ? b_f++ : b_f--)
-        {
-            x = b_f;
-            y = columnaInicio;
-            for (int idx_ship = 0; idx_ship < player->placed_ships; idx_ship++) {
-                for (s_part = 0; s_part < player->ships[idx_ship].size; s_part++) {
-                    if (posicion_barco(player, idx_ship, s_part, x, y)) {
-                        color_txt(ERROR_COLOR);
-                        printf("Solapamiento detectado en"); color_txt(INFO_COLOR); printf(" %d,%d", x, y);
-                        color_txt(DEFAULT_COLOR); printf(" con el barco %d", idx_ship + 1);
-                        color_txt(INFO_COLOR); printf(" CodeError: 4\n"); color_txt(DEFAULT_COLOR);
-                        return false; // Hay solapamiento
-                    }
-                }
+    else if (player->ships[index].ship_direction == 'S' || player->ships[index].ship_direction == 'N') {
+        for (int i = rowIn + 1; i <= rowEnd; i++) {
+            if (player->board[i][columnIn].is_water == false) {
+                codeError(player, OVERLAP_DETECTED, index, i, columnIn);
+                return false; // La celda final no es agua
             }
         }
     }
-    return true; // No hay solapamiento
+    return true; // Todas las celdas finales son agua
+}
+
+void get_remain_fleet_cells(struct player *player) {
+    int i, j;
+    // Calcular el número de barcos restantes del jugador
+    player->remain_ship_cells = 0;
+    for (i = 0; i < BOARD_SIZE; i++) {
+        for (j = 0; j < BOARD_SIZE; j++) {
+            if (player->board[i][j].status == SHIP_STER || player->board[i][j].status == SHIP_BODY) {
+                player->remain_ship_cells++; // Incrementar el contador de celdas de barco restantes
+            }
+        }
+    }
 }
 
 // Administrar ataques a barcos
 
-bool validar_ataque_cc_rango(struct player *player) {
-    int f = player->last_input_fila;
-    int c = player->last_input_columna;
-
+bool attack_in_range(struct player *player, int cc_row, int cc_column) {
+    
     // Cartas que solo requieren validar fila
-    if (player->last_card_id == 3 || player->last_card_id == 6) {
-        if (f < 0 || f >= BOARD_SIZE) {
-            color_txt(ERROR_COLOR);
-            printf("Fila fuera del tablero de juego.");
-            color_txt(INFO_COLOR); printf(" CodeError: 1\n");
-            color_txt(DEFAULT_COLOR);
+    if (player->prevCard == 3 || player->prevCard == 6) {
+        if (cc_row < 0 || cc_row >= BOARD_SIZE) {
+            codeError(player, OUT_OF_RANGE, -1, cc_row, cc_column);
         }
-        return (f >= 0 && f < BOARD_SIZE); // Solo fila es válida
+    return (cc_row >= 0 && cc_row < BOARD_SIZE); // Solo fila es válida
     }
-    if (player->last_card_id == 4 || player->last_card_id == 7) {
-        if (c < 0 || c >= BOARD_SIZE) {
-            color_txt(ERROR_COLOR);
-            printf("Columna fuera del tablero de juego.");
-            color_txt(INFO_COLOR); printf(" CodeError: 1\n");
-            color_txt(DEFAULT_COLOR);
+    if (player->prevCard == 4 || player->prevCard == 7) {
+        if (cc_column < 0 || cc_column >= BOARD_SIZE) {
+            codeError(player, OUT_OF_RANGE, -1, cc_row, cc_column);
         }
-        return (c >= 0 && c < BOARD_SIZE); // Solo columna es válida
+        return (cc_column >= 0 && cc_column < BOARD_SIZE); // Solo columna es válida
     }
     // Cartas que requieren validar fila y columna
-    return validar_cc_rango(f, c);
+    return in_range(cc_row, cc_column);
 }
 
-int barcos_en_fila(struct player *player, struct player *enemy, int cc_fila) {
-    int contador = 0;
+int getEnemyCellsInRow(struct player *player, struct player *enemy, int cc_row) {
+    int i, contador = 0;
     
-    for (int idx_ship = 0; idx_ship < NUM_SHIPS; idx_ship++) {
-        for (int s_part = 0; s_part < enemy->ships[idx_ship].size; s_part++) {
-            // Comprobar si la parte del barco coincide con la fila y no está dañado
-            if (enemy->ships[idx_ship].status[s_part][CC_FILA] == cc_fila && casilla_saludable(enemy, idx_ship, s_part)) {
-                contador++;
-            }
+    for (i = 0; i < BOARD_SIZE; i++) {
+        if (enemy->board[cc_row][i].status == SHIP_STER || 
+            enemy->board[cc_row][i].status == SHIP_BODY) {
+            contador++;
         }
     }
     return contador;
 }
 
-int barcos_en_columna(struct player *player, struct player *enemy, int cc_columna) {
-    int contador = 0;
+int getEnemyCellsInCol(struct player *player, struct player *enemy, int cc_columna) {
+    int i, contador = 0;
 
-    for (int idx_ship = 0; idx_ship < NUM_SHIPS; idx_ship++) {
-        for (int s_part = 0; s_part < enemy->ships[idx_ship].size; s_part++) {
-            // Comprobar si la parte del barco coincide con la columna y no está dañado
-            if (enemy->ships[idx_ship].status[s_part][CC_COLUMNA] == player->last_input_columna && (casilla_saludable(enemy, idx_ship, s_part))) {
-                contador++;
-            }
+    for (i = 0; i < BOARD_SIZE; i++) {
+        if (enemy->board[i][cc_columna].status == SHIP_STER || 
+            enemy->board[i][cc_columna].status == SHIP_BODY) {
+            contador++;
         }
     }
     return contador;
 }
 
-bool validar_estado_casilla(struct player *player, struct player *enemy) {
+bool cell_is_valid_to_shot(struct player *player, struct player *enemy) {
+    int row = player->prevRowInput;
+    int column = player->prevColInput;
+
     // ¿Hay barco en la coordenada?
-    for (int idx_ship = 0; idx_ship < NUM_SHIPS; idx_ship++) {
-        for (int s_part = 0; s_part < enemy->ships[idx_ship].size; s_part++) {
-            if (posicion_barco_enemy(player, idx_ship, s_part, enemy)) {
-                if (!casilla_saludable(enemy, idx_ship, s_part)) { // Si la casilla esta dañada
-                    color_txt(ERROR_COLOR);
-                        printf("Casilla ya disparada previamente");
-                    color_txt(INFO_COLOR);
-                        printf(" CodeError: 5\n");
-                    color_txt(DEFAULT_COLOR);
-                    return false; // Ya disparado
-                }
-                return true; // Casilla válida para disparar
-            }
-        }
+    if (enemy->board[row][column].status == SHIP_STER_D || 
+        enemy->board[row][column].status == SHIP_BODY_D || 
+        enemy->board[row][column].status == FAILED_SHOT) {
+        codeError(EMPTY, PREVIOUSLY_SHOT, -1, row, column);
+        return false; // Ya disparado
     }
-    return true; // No habia barco → puede disparar (agua)
-}
-
-bool validar_entrada(char *input, int carta_id) {
-    char *endptr;
-    long num;
-    char *salto_linea;
-    char c;
-
-    // SOLO fila (letra)
-    if (carta_id == 3 || carta_id == 6) {
-        salto_linea = strchr(input, '\n');
-        if (!salto_linea) {
-            color_txt(ERROR_COLOR); printf("Debe ingresar una letra.");
-            color_txt(INFO_COLOR); printf(" CodeError: 0\n");
-            color_txt(DEFAULT_COLOR);
-            return false;
-        }
-        *salto_linea = '\0';
-        if (strlen(input) != 1 || !isalpha((unsigned char)input[0])) {
-            color_txt(ERROR_COLOR); printf("Formato de entrada invalido.");
-            color_txt(INFO_COLOR); printf(" CodeError: 1\n");
-            color_txt(DEFAULT_COLOR);
-            return false;
-        }
-        c = toupper((unsigned char)input[0]);
-        if (c < 'A' || c > 'A' + BOARD_SIZE - 1) {
-            color_txt(ERROR_COLOR); printf("Fila fuera del tablero de juego.");
-            color_txt(INFO_COLOR); printf(" CodeError: 2\n");
-            color_txt(DEFAULT_COLOR);
-            return false;
-        }
-        return true;
-    }
-    // SOLO columna (número)
-    else if (carta_id == 4 || carta_id == 7) {
-        if (strchr(input, '\n') == NULL) {
-            color_txt(ERROR_COLOR); printf("Debe ingresar un numero.");
-            color_txt(INFO_COLOR); printf(" CodeError: 0\n");
-            color_txt(DEFAULT_COLOR);
-            return false;
-        }
-        input[strcspn(input, "\n")] = '\0';
-        errno = 0;
-        num = strtol(input, &endptr, 10);
-        if (errno == ERANGE || *endptr != '\0') {
-            color_txt(ERROR_COLOR); printf("Formato de entrada invalido.");
-            color_txt(INFO_COLOR); printf(" CodeError: 1\n");
-            color_txt(DEFAULT_COLOR);
-            return false;
-        }
-        if (num < 1 || num > BOARD_SIZE) {
-            color_txt(ERROR_COLOR); printf("Columna fuera del tablero de juego.");
-            color_txt(INFO_COLOR); printf(" CodeError: 3\n");
-            color_txt(DEFAULT_COLOR);
-            return false;
-        }
-        return true;
-    }
-    return false;
+    return true; // No habia barco → puede disparar (agua) o hay barco intacto
 }

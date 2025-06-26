@@ -7,3 +7,10 @@ codigo_fuente/desktop.ini
 
 #ignorar .exe
 codigo_fuente/*.exe
+
+#inorar .json
+codigo_fuente/configs/*.json
+codigo_fuente/configs/player1_save.json
+codigo_fuente/configs/player2_save.json
+codigo_fuente/configs/cards_config.json
+codigo_fuente/configs/ships_config.json

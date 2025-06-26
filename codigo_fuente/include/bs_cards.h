@@ -3,17 +3,17 @@
 
 #include "master.h" // Libreria con todas las cabeceras del proyecto.
 
-void disparar(struct player *player, struct player *enemy);
+void shoot_func(struct player *player, struct player *enemy);
 
-void bombardea_fila(struct player *player, struct player *enemy);
+void bomb_row(struct player *player, struct player *enemy);
 
-void bombardea_columna(struct player *player, struct player *enemy);
+void bomb_col(struct player *player, struct player *enemy);
 
 void revela(struct player *player, struct player *enemy);
 
-void chequeo_fila(struct player *player, struct player *enemy);
+void activateCheckInRow(struct player *player, struct player *enemy);
 
-void chequeo_columna(struct player *player, struct player *enemy);
+void activateCheckInCol(struct player *player, struct player *enemy);
 
 void activar_salvo(struct player *player);
 

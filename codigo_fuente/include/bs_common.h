@@ -3,20 +3,34 @@
 
 #include <stdbool.h> // Incluye definiciones de tipo booleano estándar
 
+// Error codes
+#define INVALID_INPUT 0 // Entrada vacía o inválida
+#define INVALID_FORMAT 1 // Formato de entrada inválido
+#define OUT_OF_RANGE 2 // Coordenadas fuera de rango
+#define INVALID_DIRECTION 3 // Dirección no válida para el barco
+#define INVALID_DIMENSION 4 // Dimensiones del barco no coinciden con las coordenadas
+#define OVERLAP_DETECTED 5 // Solapamiento de barcos detectado
+#define PREVIOUSLY_SHOT 6 // Casilla ya disparada previamente
+
 // Definiciones comunes compartidas en todo el proyecto
 #define BOARD_SIZE 10
 #define MAX_NAME_LENGTH 21
 #define NUM_SHIPS 5
-#define VICTORYCONDITION 17 // Número de partes de barco que se deben hundir para ganar
-#define MAX_ID_9 4
-#define NUM_CARTAS 11
+#define VICTORY_COND 17 // Número de partes de barco que se deben hundir para ganar
+#define CARD_QTY 11
+#define SHIP_CELLS_QTY VICTORY_COND // Número total de partes de barco
+#define UNSET -1 // Valor para indicar que una celda no está establecida
+#define NONE 0
+#define EMPTY '\0' // Valor para indicar que una cadena está vacía
+
+// Definiciones array status
 #define CC_STATUS 2 // Columna de estado en la matriz de barcos
-#define CC_FILA 0 // Columna de fila en la matriz de barcos
-#define CC_COLUMNA 1 // Columna de columna en la matriz de barcos
-#define TOTAL_SHIP_PARTS VICTORYCONDITION // Número total de partes de barco
+#define CC_ROW 0 // Columna de fila en la matriz de barcos
+#define CC_COLUMN 1 // Columna de columna en la matriz de barcos
+
 // Valores numericos para interpretar el tablero
 #define WATER 0
-#define FAILED_SHOT -1 // Disparo fallido
+#define FAILED_SHOT UNSET // Disparo fallido
 #define SHIP_STER 1
 #define SHIP_BODY 2
 #define SHIP_STER_D 3
@@ -30,58 +44,81 @@
 #define FAILED_SHOT_PRINT 158 // '×'
 
 // Common structure definitions
-struct ship
+struct board
 {
-    int id; // ID del barco
-    char name[MAX_NAME_LENGTH]; // Nombre del barco
-    int size; // alojar la dimension del barco
-    char direction; // 'E' for east, 'W' for west, 'N' for north, 'S' for south, 'U' for undefined
-    int **status; // status[size][3]: [fila][0]=x, [fila][1]=y, [fila][2]=estado (1=punta, 2=cuerpo, 3=punta dañada, 4=cuerpo dañado)
-    bool vivo;
+    int ship_id; // ID del barco
+    int ship_cell;
+    bool is_water; // Indica si la celda es agua
+    int status; // Estado de la celda: 0 = agua, 1 = punta intacta, 2 = cuerpo intacto, 3 = punta dañada, 4 = cuerpo dañado, -1 = disparo fallido
+
 };
 
-struct cartas
+
+struct ship
 {
-    int id;
-    char nombre[40];
-    char descripcion[150];
+    int ship_id; // ID del barco
+    char ship_name[MAX_NAME_LENGTH]; // Nombre del barco
+    int ship_size; // alojar la dimension del barco
+    char ship_direction; // 'E' for east, 'W' for west, 'N' for north, 'S' for south, 'U' for undefined
+    int **status; // status[ship_size][3]: [fila][0]=x, [fila][1]=y, [fila][2]=estado (1=punta, 2=cuerpo, 3=punta dañada, 4=cuerpo dañada)
+    bool is_alive; // Indica si el barco está vivo
+};
+
+struct card
+{
+    int card_id;
+    char card_name[64];
+    char description[256];
     int peso;
 };
 
 struct player
 {
     // Variables de innicializacion
-    char name[MAX_NAME_LENGTH];
+    int player_index;
+    char player_name[MAX_NAME_LENGTH];
     int placed_ships;
-    int turno; // Turno del jugador
-
+    int turn; // Turno del jugador
+    int acc_turns; // Acumula los turnos del jugador
     // Variables para barcos
     struct ship ships[NUM_SHIPS]; // Array of ships for the player
     int enemy_hit_parts; // Numero de partes de barco enemigo alcanzadas
-    int sunked_ships; // Numero de barcos enemigos hundidos
-    int failed_shooted_coordinates[BOARD_SIZE][BOARD_SIZE]; // Matriz para almacenar coordenadas disparadas
-    
-    // Variables para cartas
-    struct cartas cartas[NUM_CARTAS]; // Array de cartas
-    int peso_total; // Peso total de las cartas
-    int torres_acumuladas; // Numero de torres acumuladas
-    bool chequeo_fila[BOARD_SIZE]; // Variable para guardar la fila seleccionada por el jugador
-    int contador_fila[BOARD_SIZE]; // Contador para el chequeo de fila
-    int ultima_fila_chequeada; // Almacena la última fila chequeada
-    bool chequeo_columna[BOARD_SIZE]; // Variable para guardar la columna seleccionada por el jugador
-    int contador_columna[BOARD_SIZE]; // Contador para el chequeo de columna
-    int ultima_columna_chequeada; // Almacena la última columna chequeada
-    bool salvo;
-    bool buff;
+    int sunken_ships; // Numero de barcos enemigos hundidos
+    int remain_ship_cells; // Numero de barcos restantes del jugador
 
-    // Variables de tipo buffer
-    int last_input_fila; // Almacena la última coordenada de disparo
-    int last_input_columna; // Almacena la última coordenada de disparo
-    int last_successful_shot_fila; // Almacena la última coordenada de disparo exitosa
-    int last_successful_shot_columna; // Almacena la última coordenada de disparo exitosa
-    int last_card_id; // Almacena el ID de la última carta utilizada
-    int aciertos_por_turno; // Almacena el número de aciertos por turno
+    struct board board[BOARD_SIZE][BOARD_SIZE]; // Tablero del jugador
+
+
+    // Variables para cartas
+    struct card cards[CARD_QTY]; // Array de cartas
+    int cards_total_weight; // Peso total de las cartas
+    int acc_towers; // Numero de torres acumuladas
+    bool row_check[BOARD_SIZE]; // Variable para guardar la fila seleccionada por el jugador
+    int cellCntRow[BOARD_SIZE]; // Contador para el chequeo de fila
+    int prev_check_row; // Almacena la última fila chequeada
+    bool col_check[BOARD_SIZE]; // Variable para guardar la columna seleccionada por el jugador
+    int cellCntCol[BOARD_SIZE]; // Contador para el chequeo de columna
+    int prev_check_col; // Almacena la última columna chequeada
+    bool salvo_mode;
+    bool upgrade_enable;
+
+    // Buffer registers
+    int prevRowInput; // Almacena la última coordenada de disparo
+    int prevColInput; // Almacena la última coordenada de disparo
+    int prevHitRow; // Almacena la última coordenada de disparo exitosa
+    int prevHitCol; // Almacena la última coordenada de disparo exitosa
+    int prevCard; // Almacena el ID de la última carta utilizada
+    int hitsInTurn; // Almacena el número de aciertos por turno
 };
 
+static inline void reset_buffer_register(struct player *player) {
+    // Reiniciar las variables de tipo buffer
+    player->prevRowInput = UNSET;
+    player->prevColInput = UNSET;
+    player->prevHitRow = UNSET;
+    player->prevHitCol = UNSET;
+    player->hitsInTurn = 0; // Reiniciar aciertos por turno a 0
+    player->prevCard = UNSET; // Reiniciar ID de carta
+}
 
 #endif // BS_COMMON_H

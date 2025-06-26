@@ -1,116 +1,109 @@
 #include "bs_cards.h" // libreria para poder usar funciones de efectos de cartas.
 
-void disparar(struct player *player, struct player *enemy) {
+void shoot_func(struct player *player, struct player *enemy) {
     bool disparo_exitoso = false; // Variable para verificar si el disparo fue exitoso
+    int row = player->prevRowInput; // Fila del disparo
+    int column = player->prevColInput; // Columna del disparo
+    int index = enemy->board[row][column].ship_id; // ID del barco en la celda disparada
+    int ship_cell = enemy->board[row][column].ship_cell; // Parte del barco en la celda disparada
 
-    for (int idx_ship = 0; idx_ship < NUM_SHIPS; idx_ship++) { // Recorre todos los barcos enemigos
-        for (int s_part = 0; s_part < enemy->ships[idx_ship].size; s_part++) { // Recorre todas las partes del barco
-            if (posicion_barco(enemy, idx_ship, s_part, 
-                                player->last_input_fila, 
-                                player->last_input_columna)) {
-                disparo_exitoso = true;
-
-                // Guarda la última coordenada de disparo exitosa
-                player->last_successful_shot_fila = player->last_input_fila;
-                player->last_successful_shot_columna = player->last_input_columna;
-
-                if (player->buff) {
-                    // Modifica todo el barco a dañado(hundido)
-                    mostrar_ultimo_disparo_exitoso(player);
-                    hundir_barco_buff(player, idx_ship, enemy);
-
-                } else {
-                    // Modifica el estado de la parte del barco a dañada
-                    enemy->ships[idx_ship].status[s_part][CC_STATUS] += 2;
-                    mostrar_ultimo_disparo_exitoso(player);
-                    pausa_consola(1.3);
-                    player->enemy_hit_parts++;
-                    player->aciertos_por_turno++;
-                    hundido(player, enemy); // Verifica si el barco está hundido
-                }
-                break; // Salir del bucle si se encuentra una parte del barco
-            }
+    if (enemy->board[row][column].status == WATER) {
+        printf_color(ERROR_COLOR, "Disparo fallido en %c,%d! Disparaste al ", player->prevRowInput + 'A', player->prevColInput + 1);
+        printf_color(WATER_COLOR, "agua.\n");
+        enemy->board[row][column].status = FAILED_SHOT; // Marca la celda como disparo fallido
+    } else {
+        player->prevHitCol = column; // Guarda la columna del disparo exitoso
+        player->prevHitRow = row; // Guarda la fila del disparo exitoso
+        if (player->upgrade_enable) {
+            instant_sunk(player, index, enemy); // Hundir el barco instantáneamente
+            player->prevHitRow = row; // Guarda la fila del disparo exitoso
+            player->prevHitCol = column; // Guarda la columna del disparo exitoso
+            return; // Sale de la función si se usa la mejora
         }
-        
-    }
-    if (!disparo_exitoso) {
-            color_txt(ERROR_COLOR);
-            printf("Disparo fallido"); color_txt(DEFAULT_COLOR);
-            printf(" en %c,%d! Disparaste al", 
-                    player->last_input_fila + 'A',
-                    player->last_input_columna + 1);
-            color_txt(WATER_COLOR); printf(" agua.\n"); color_txt(DEFAULT_COLOR);
-            // Marca la coordenada como disparo fallido
-            player->failed_shooted_coordinates[player->last_input_fila][player->last_input_columna] = FAILED_SHOT;
+        enemy->board[row][column].status += 2;
+        enemy->ships[index].status[ship_cell][CC_STATUS] += 2; // Marca la parte del barco como dañada
+        player->enemy_hit_parts++; // Incrementa el contador de partes de barco enemigo alcanzadas
+        get_remain_fleet_cells(enemy); // Actualiza el número de partes restantes del barco enemigo
+        player->hitsInTurn++; // Incrementa el contador de aciertos en el turno actual
+        printPrevHitCoord(player); // Imprime las coordenadas del disparo exitoso 
+        is_sunk(player, enemy, index); // Verifica si el barco está hundido
     }
 }
 
-void bombardea_fila(struct player *player, struct player *enemy) {
-    // Recorre todos los barcos enemigos y daña las partes en la fila dada
-    for (int idx_ship = 0; idx_ship < NUM_SHIPS; idx_ship++) {
-        for (int s_part = 0; s_part < enemy->ships[idx_ship].size; s_part++) {
-            if (enemy->ships[idx_ship].status[s_part][CC_FILA] == player->last_input_fila) {
-                if (casilla_saludable(enemy, idx_ship, s_part)) {
-                    if (player->buff) {
-                        printf("Disparo exitoso en %c,%d!\n", player->last_input_fila + 'A', enemy->ships[idx_ship].status[s_part][CC_COLUMNA] + 1);
-                        hundir_barco_buff(player, idx_ship, enemy);
-                        //printf("Haz hundido el barco!\n");
-                        hundido(enemy, player); // Verifica si el barco está hundido
-                        pausa_consola(1.3);
-                        break; // Salir del bucle si se hunde el barco
-                    } else {
-                    enemy->ships[idx_ship].status[s_part][CC_STATUS] += 2; // Modifica el estado de la parte del barco a dañada
-                    player->enemy_hit_parts++; // Incrementa el contador de partes dañadas del enemigo
-                    player->aciertos_por_turno++; // Incrementa el contador de aciertos por turno
-                    printf("Disparo exitoso en %c,%d\n", player->last_input_fila + 'A', enemy->ships[idx_ship].status[s_part][CC_COLUMNA] + 1);
-                    hundido(enemy, player); // Verifica si el barco está hundido
-                    pausa_consola(1.3);
-                    }
-                    player->last_successful_shot_fila = player->last_input_fila; // Guarda la última fila disparada
-                }
+void bomb_row(struct player *player, struct player *enemy) {
+    int row = player->prevRowInput; // Fila del disparo
+    int i, index, ship_cell;
+
+    for (i = 0; i < BOARD_SIZE; i++) {
+        index = enemy->board[row][i].ship_id; // ID del barco en la celda disparada
+        ship_cell = enemy->board[row][i].ship_cell; // Parte del barco en la celda disparada
+        player->prevColInput = i; // Actualiza la columna de disparo
+        if (index >= 0 && cell_is_intact_ship_cell(enemy, index, ship_cell) && enemy->board[row][i].status != WATER) {
+            enemy->board[row][i].status += 2; // Marca la celda como dañada
+            enemy->ships[index].status[ship_cell][CC_STATUS] += 2; // Marca la parte del barco como dañada
+            player->prevHitRow = row; // Guarda la fila del disparo exitoso
+            player->prevHitCol = i; // Guarda la columna del disparo exitoso
+            printPrevHitCoord(player); // Imprime las coordenadas del disparo exitoso
+            if (player->upgrade_enable) {
+                instant_sunk(player, index, enemy);
+            } else {
+                is_sunk(player, enemy, index); // Verifica si el barco está hundido
             }
+            player->enemy_hit_parts++; // Incrementa el contador de partes de barco enemigo alcanzadas
+            get_remain_fleet_cells(enemy); // Actualiza el número de partes restantes del barco enemigo
+            player->hitsInTurn++; // Incrementa el contador de aciertos en el turno actual
+        } else if (enemy->board[row][i].status == WATER) {
+        enemy->board[row][i].status = FAILED_SHOT; // Marca la celda como disparo fallido
+        printf_color(ERROR_COLOR, "Disparo fallido en %c,%d! Disparaste al ", player->prevRowInput + 'A', i + 1);
+        printf_color(WATER_COLOR, "agua.\n");
         }
+        pause_timer(.7);
     }
 }
 
-void bombardea_columna(struct player *player, struct player *enemy) {
-    // Recorre todos los barcos enemigos y daña las partes en la columna dada
-    for (int idx_ship = 0; idx_ship < NUM_SHIPS; idx_ship++) {
-        for (int s_part = 0; s_part < enemy->ships[idx_ship].size; s_part++) {
-            if (enemy->ships[idx_ship].status[s_part][CC_COLUMNA] == player->last_input_columna) {
-                if (casilla_saludable(enemy, idx_ship, s_part)) {
-                    if (player->buff) {
-                        printf("Disparo exitoso en %c,%d!\n", enemy->ships[idx_ship].status[s_part][CC_FILA] + 'A', player->last_input_columna + 1);
-                        hundir_barco_buff(player, idx_ship, enemy);
-                        hundido(enemy, player); // Verifica si el barco está hundido
-                        break; // Salir del bucle si se hunde el barco
-                    } else {
-                        enemy->ships[idx_ship].status[s_part][CC_STATUS] += 2; // Modifica el estado de la parte del barco a dañada
-                        player->enemy_hit_parts++; // Incrementa el contador de partes dañadas del enemigo
-                        player->aciertos_por_turno++; // Incrementa el contador de aciertos por turno
-                        printf("Disparo exitoso en %c,%d\n", enemy->ships[idx_ship].status[s_part][CC_FILA] + 'A', player->last_input_columna + 1);
-                        hundido(enemy, player); // Verifica si el barco está hundido
-                    }
-                    player->last_successful_shot_columna = player->last_input_columna; // Guarda la última columna disparada
-                }
+void bomb_col(struct player *player, struct player *enemy) {
+    int col = player->prevColInput; // Columna del disparo
+    int i, index, ship_cell;
+
+    for (i = 0; i < BOARD_SIZE; i++) {
+        index = enemy->board[i][col].ship_id; // ID del barco en la celda disparada
+        ship_cell = enemy->board[i][col].ship_cell; // Parte del barco en la celda disparada
+        player->prevRowInput = i; // Actualiza la fila de disparo
+        if (index >= 0 && cell_is_intact_ship_cell(enemy, index, ship_cell) && enemy->board[i][col].status != WATER) {
+            enemy->board[i][col].status += 2; // Marca la celda como dañada
+            enemy->ships[index].status[ship_cell][CC_STATUS] += 2; // Marca la parte del barco como dañada
+            player->prevHitRow = i; // Guarda la fila del disparo exitoso
+            player->prevHitCol = col; // Guarda la columna del disparo exitoso
+            printPrevHitCoord(player); // Imprime las coordenadas del disparo exitoso
+            if (player->upgrade_enable) {
+                instant_sunk(player, index, enemy);
+            } else {
+                is_sunk(player, enemy, index); // Verifica si el barco está hundido
             }
+            player->enemy_hit_parts++; // Incrementa el contador de partes de barco enemigo alcanzadas
+            get_remain_fleet_cells(enemy); // Actualiza el número de partes restantes del barco enemigo
+            player->hitsInTurn++; // Incrementa el contador de aciertos en el turno actual
+        } else if (enemy->board[i][col].status == WATER) {
+            enemy->board[i][col].status = FAILED_SHOT; // Marca la celda como disparo fallido
+            printf_color(ERROR_COLOR, "Disparo fallido en %c,%d! Disparaste al ", i + 'A', player->prevColInput + 1);
+            printf_color(WATER_COLOR, "agua.\n");
         }
+        pause_timer(.7);
     }
 }
 
 void revela(struct player *player, struct player *enemy) {
     // 1. Guardar todas las partes de barco no dañadas
-    int posibles[TOTAL_SHIP_PARTS - player->enemy_hit_parts][CC_STATUS]; // Máximo 5 partes por barco
+    int posibles[SHIP_CELLS_QTY - player->enemy_hit_parts][CC_STATUS]; // Máximo 5 partes por barco
     int total = 0;
-    int s, p;
-
-    for (s = 0; s < NUM_SHIPS; s++) {
-        struct ship *barco = &enemy->ships[s];
-        for (p = 0; p < barco->size; p++) {
+    int ship_index, cell_ship;
+    
+    for (ship_index = 0; ship_index < NUM_SHIPS; ship_index++) {
+        for (cell_ship = 0; cell_ship < player->ships[ship_index].ship_size; cell_ship++) {
             // Si la parte no está dañada (1 = punta, 2 = cuerpo)
-            if (barco->status[p][CC_STATUS] == SHIP_STER || barco->status[p][CC_STATUS] == SHIP_BODY) {
-                posibles[total][0] = barco->status[p][CC_FILA]; // fila
-                posibles[total][1] = barco->status[p][CC_COLUMNA]; // columna
+            if (cell_is_intact_ship_cell(enemy, ship_index, cell_ship)) {
+                posibles[total][0] = player->ships[ship_index].status[cell_ship][CC_ROW]; // fila
+                posibles[total][1] = player->ships[ship_index].status[cell_ship][CC_COLUMN]; // columna
                 total++;
             }
         }
@@ -122,51 +115,56 @@ void revela(struct player *player, struct player *enemy) {
 
 
     printf("Presione enter para revelar...\n");
-    color_txt(INFO_COLOR);
-    printf("---> ");
-    color_txt(ERROR_COLOR);
-    printf("(%c,%d)", fila + 'A', columna + 1);
-    color_txt(INFO_COLOR);
-    printf(" <---\n");
-    color_txt(DEFAULT_COLOR);
-    pausa_consola(1);
+    printf_color(INFO_COLOR,"---> ");
+    printf_color(ERROR_COLOR,"(%c,%d)", fila + 'A', columna + 1);
+    printf_color(INFO_COLOR," <---\n");
+    pause_timer(1);
     
     printf("Presione enter para disparar...\n");
     getchar();
-    for (s = 0; s < NUM_SHIPS; s++) {
-        for (p = 0; p < enemy->ships[s].size; p++) {
-            if (posicion_barco(enemy, s, p, fila, columna)) {
-                // Modifica el estado de la parte del barco a dañada (sin validaciones)
-                enemy->ships[s].status[p][CC_STATUS] += 2;
-                break;
-            }
-        }
+    
+    enemy->board[fila][columna].status += 2; // Marca la celda como dañada
+    player->prevHitRow = fila; // Guarda la fila del disparo exitoso
+    player->prevHitCol = columna; // Guarda la columna del disparo exitoso
+    ship_index = enemy->board[fila][columna].ship_id; // ID del barco en la celda disparada
+    cell_ship = enemy->board[fila][columna].ship_cell; // Parte del barco en la celda disparada
+
+    enemy->ships[ship_index].status[cell_ship][CC_STATUS] += 2; // Marca la parte del barco como dañada
+    player->hitsInTurn++; // Incrementa el contador de aciertos en el turno actual
+    player->enemy_hit_parts++; // Incrementa el contador de partes de barco enemigo alcanzadas
+    get_remain_fleet_cells(enemy); // Actualiza el número de partes restantes del barco enemigo
+    
+    if (player->upgrade_enable) {
+        instant_sunk(player, ship_index, enemy); // Hundir el barco instantáneamente
+        return; // Sale de la función si se usa la mejora
+    } else {
+        is_sunk(player, enemy, ship_index); // Verifica si el barco está hundido
     }
-    limpiar_pantalla();
-    mostrar_turno_y_tablero_G(player, enemy);
-    printf("Disparo exitoso en %c,%d!\n", fila + 'A', columna + 1);
-    player->enemy_hit_parts++;
-    hundido(enemy, player); // Verifica si el barco está hundido
+
+    clear_screen();
+    currentPlayerWarScreen(player, enemy);
+    printPrevHitCoord(player); // Imprime las coordenadas del disparo exitoso
 }
 
-void chequeo_fila(struct player *player, struct player *enemy) {
-    player->chequeo_fila[player->last_input_fila] = true;
-    player->contador_fila[player->last_input_fila] = barcos_en_fila(player, enemy, player->last_input_fila);
+void activateCheckInRow(struct player *player, struct player *enemy) {
+    player->row_check[player->prevRowInput] = true;
+    player->cellCntRow[player->prevRowInput] = getEnemyCellsInRow(player, enemy, player->prevRowInput);
 }
 
-void chequeo_columna(struct player *player, struct player *enemy) {
-    player->chequeo_columna[player->last_input_columna] = true;
-    player->contador_columna[player->last_input_columna] = barcos_en_columna(player, enemy, player->last_input_columna);
+void activateCheckInCol(struct player *player, struct player *enemy) {
+    player->col_check[player->prevColInput] = true;
+    player->cellCntCol[player->prevColInput] = getEnemyCellsInCol(player, enemy, player->prevColInput);
 }
 
 void activar_salvo(struct player *player) {
-    player->salvo = true;
+    player->salvo_mode = true;
 }
 
 void desactivar_salvo(struct player *player) {
-    player->salvo = false;
+    player->salvo_mode = false;
 }
 
 void torre_ventaja(struct player *player) {
-    player->buff = true;
+    player->upgrade_enable = true;
+    player->cards[9].peso = 0; // Reducir el peso de la carta Torre de ventaja a 0 para que no pueda ser seleccionada
 }

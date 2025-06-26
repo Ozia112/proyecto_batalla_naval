@@ -5,27 +5,27 @@
 
 // administrar colocacion y movimiento de barcos
 
-bool validar_cc_rango(int cc_fila, int cc_columna);
+bool in_range(int cc_row, int cc_column);
 
-bool validar_solapamiento_inicial(struct player *player, int index, int filaInicio, int columnaInicio);
+bool first_coord_is_free(struct player *player, int index, int rowIn, int columnIn);
 
-bool validar_orientacion(struct player *player, int index, int filaInicio, int filaFin, int columnaInicio, int columnaFin);
+bool is_straight(struct player *player, int index, int rowIn, int rowEnd, int columnIn, int columnEnd);
 
-bool validar_dimension(struct player *player, int index, int filaInicio, int filaFin, int columnaInicio, int columnaFin);
+bool dim_match_index(struct player *player, int index, int rowIn, int rowEnd, int columnIn, int columnEnd);
 
-bool validar_solapamiento(struct player *player, int index, int filaInicio, int filaFin, int columnaInicio, int columnaFin);
+bool end_cell_is_water(struct player *player, int index, int rowIn, int rowEnd, int columnIn, int columnEnd);
+
+void get_remain_fleet_cells(struct player *player);
 
 // Administrar ataques a barcos
 
-bool validar_ataque_cc_rango(struct player *player);
+bool attack_in_range(struct player *player, int cc_row, int cc_column);
 
-int barcos_en_fila(struct player *player, struct player *enemy, int cc_fila);
+int getEnemyCellsInRow(struct player *player, struct player *enemy, int cc_row);
 
-int barcos_en_columna(struct player *player, struct player *enemy, int cc_columna);
+int getEnemyCellsInCol(struct player *player, struct player *enemy, int cc_columna);
 
-bool validar_estado_casilla(struct player *player, struct player *enemy);
-
-bool validar_entrada(char *input, int carta_id);
+bool cell_is_valid_to_shot(struct player *player, struct player *enemy);
 
 
 #endif

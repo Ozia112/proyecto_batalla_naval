@@ -2,20 +2,15 @@
 #define BS_SHIP_H
 
 #include "master.h" // Incluye todas las cabeceras del proyecto
+bool isShipHere(struct player *player, int index, int ship_cell, int fila, int columna); // Verifica si una parte del barco está en la posición (x, y)
 
-void inicializar_flota(struct player *player); // Inicializa la flota de barcos del jugador
+bool isEnemyShipHere(struct player *player, int index, int ship_cell, struct player *enemy);
 
-void inicializar_barco(struct ship *barco, int size); // Inicializa un barco con un tamaño específico
+bool cell_is_intact_ship_cell(struct player *enemy, int index, int ship_cell); // Verifica si una parte del barco está saludable
 
-bool posicion_barco(struct player *player, int index, int s_part, int fila, int columna); // Verifica si una parte del barco está en la posición (x, y)
+void instant_sunk(struct player *player, int index, struct player *enemy); // Hundir un barco enemigo con la mejora activada
 
-bool posicion_barco_enemy(struct player *player, int index, int s_part, struct player *enemy);
-
-bool casilla_saludable(struct player *enemy, int index, int s_part); // Verifica si una parte del barco está saludable
-
-void hundir_barco_buff(struct player *player, int index, struct player *enemy); // Hundir un barco enemigo con el buff activado
-
-void hundido(struct player *player, struct player *enemy); // Verifica si un barco enemigo ha sido hundido
+void is_sunk(struct player *player, struct player *enemy, int index); // Verifica si un barco enemigo ha sido hundido
 
 void liberar_status(struct ship *barco); // Libera la memoria del estado de un barco
 
