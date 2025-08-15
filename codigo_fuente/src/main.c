@@ -1,31 +1,38 @@
-#include "master.h" // Incluye todas las cabeceras necesarias para el proyecto
+#include "master.h"
 
 void impresion_ascii();
 
+void impresion_colores_ansi();
+
 int main() {
-	struct player player1, player2; // Declaración de dos jugadores.
+    debugMode = false;
     
-    init_struct_player(&player1); // Inicializa el jugador 1.
-    init_struct_player(&player2); // Inicializa el jugador 2.
+	struct player player1, player2;
+    srand((unsigned int)time(NULL));
+
+    init_struct_player(&player1);
+    init_struct_player(&player2);
     player1.player_index = 1;
     player2.player_index = 2;
 
-    _mkdir("configs"); // Asegurarse de que el directorio configs existe
-    set_CP_config(850); // Configura la consola para usar la codificación CP850.
-    srand((unsigned int)time(NULL)); // Inicializa la semilla para números aleatorios.
+    _mkdir("configs");
+    set_CP_config(65001); // Set console code page to UTF-8
 
-    createCardsFile(); // Crea el archivo de configuración de cartas si no existe.
-    createShipsFile(); // Crea el archivo de configuración de barcos si no existe.
+    createCardsFile();
+    createShipsFile();
 
-    clear_screen(); // Limpia la pantalla al inicio del programa.
+    //clear_screen();
+
+    // Debug functions
+	//impresion_ascii();
+    //impresion_colores_ansi();
     
-	//impresion_ascii(); // Imprime la tabla de caracteres ASCII.
-	tittle_screen(); // Pantalla de bienvenida.
-    enter_continuar_cls(); // Espera a que el usuario presione ENTER para continuar.
-    
-	main_menu(&player1, &player2); // Menu principal.
+    // Flow of the game
+	tittle_screen();
+    enter_to_message("continuar", true); // Enter to continue
+	main_menu(&player1, &player2);
 
-	return 0; // Fin del programa.
+	return 0;
 }
 
 void impresion_ascii() {
@@ -40,5 +47,57 @@ void impresion_ascii() {
             printf("  ( )\t\t%d\n", i);
     }
 
-	enter_continuar_cls(); // Espera a que el usuario presione ENTER para continuar y limpia la pantalla.
+	enter_to_message("continuar", true); // Espera a que el usuario presione ENTER para continuar y limpia la pantalla.
+}
+
+void impresion_colores_ansi() {
+    // Colores regulares
+    const char* color_names[] = {
+        "Black", "Red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White"
+    };
+    int i;
+    printf("Colores ANSI estándar (foreground):\n");
+    for (i = 0; i < 8; i++) {
+        printf("\033[0;3%dm%-10s\033[0m\n", i, color_names[i]);
+    }
+    printf("\nColores ANSI en negrita (bold):\n");
+    for (i = 0; i < 8; i++) {
+        printf("\033[1;3%dmBold %-8s\033[0m\n", i, color_names[i]);
+    }
+    printf("\nColores ANSI alta intensidad:\n");
+    for (i = 0; i < 8; i++) {
+        printf("\033[0;9%dmHigh Intensity %-6s\033[0m\n", i, color_names[i]);
+    }
+    printf("\nColores ANSI fondo estándar (background):\n");
+    for (i = 0; i < 8; i++) {
+        printf("\033[4%dmBackground %-7s\033[0m\n", i, color_names[i]);
+    }
+    printf("\nColores ANSI fondo alta intensidad:\n");
+    for (i = 0; i < 8; i++) {
+        printf("\033[10%dmHigh Intensity BG %-6s\033[0m\n", i, color_names[i]);
+    }
+    printf("\n\033[0mReset\033[0m\n");
+    // Colores extendidos 256 ordenados por tono (hue)
+    printf("\nColores ANSI extendidos (16-231) ordenados por tono:\n");
+    // La paleta 16-231 es una matriz 6x6x6 (R,G,B), ordenada por HUE
+    int r, g, b, idx = 16;
+    // Orden: primero rojo, luego amarillo, verde, cian, azul, magenta
+    for (g = 0; g < 6; g++) { // Verde
+        for (r = 0; r < 6; r++) { // Rojo
+            for (b = 0; b < 6; b++) { // Azul
+                int color = 16 + 36*r + 6*g + b;
+                printf("\033[38;5;%dm%3d\033[0m ", color, color);
+                if ((b + 1) % 6 == 0) printf(" ");
+            }
+            printf(" ");
+        }
+        printf("\n");
+    }
+    // Grises
+    printf("\nColores grises (232-255):\n");
+    for (i = 232; i < 256; i++) {
+        printf("\033[38;5;%dm%3d\033[0m ", i, i);
+    }
+    printf("\n\033[0m");
+    enter_to_message("continuar", true); // Espera a que el usuario presione ENTER para continuar y limpia la pantalla.
 }

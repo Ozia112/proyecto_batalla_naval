@@ -22,6 +22,7 @@
 #define UNSET -1 // Valor para indicar que una celda no está establecida
 #define NONE 0
 #define EMPTY '\0' // Valor para indicar que una cadena está vacía
+#define EMPTY_STR "" // Cadena vacía para uso general
 
 // Definiciones array status
 #define CC_STATUS 2 // Columna de estado en la matriz de barcos
@@ -92,13 +93,16 @@ struct player
     // Variables para cartas
     struct card cards[CARD_QTY]; // Array de cartas
     int cards_total_weight; // Peso total de las cartas
+    int original_cards_weight[CARD_QTY]; // Peso original de las cartas
     int acc_towers; // Numero de torres acumuladas
+    bool input_valid; // Indica si la entrada del jugador es válida
     bool row_check[BOARD_SIZE]; // Variable para guardar la fila seleccionada por el jugador
     int cellCntRow[BOARD_SIZE]; // Contador para el chequeo de fila
     int prev_check_row; // Almacena la última fila chequeada
     bool col_check[BOARD_SIZE]; // Variable para guardar la columna seleccionada por el jugador
     int cellCntCol[BOARD_SIZE]; // Contador para el chequeo de columna
     int prev_check_col; // Almacena la última columna chequeada
+    bool salvo_loaded;
     bool salvo_mode;
     bool upgrade_enable;
 
@@ -117,8 +121,8 @@ static inline void reset_buffer_register(struct player *player) {
     player->prevColInput = UNSET;
     player->prevHitRow = UNSET;
     player->prevHitCol = UNSET;
-    player->hitsInTurn = 0; // Reiniciar aciertos por turno a 0
-    player->prevCard = UNSET; // Reiniciar ID de carta
+    player->hitsInTurn = 0;
+    player->prevCard = UNSET;
 }
 
 #endif // BS_COMMON_H

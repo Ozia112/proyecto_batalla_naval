@@ -16,6 +16,10 @@ void firstTurnRand(struct player *player1, struct player *player2);
 
 int pickRandCard(struct player *player);
 
+void set_original_card_weights(struct player *player);
+
+void get_original_card_weights(struct player *player);
+
 int calcTotalWeight(struct player *player);
 
 bool parsing_coords(const char *input, int *row, int *col);

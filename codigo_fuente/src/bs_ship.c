@@ -1,9 +1,6 @@
-#include "bs_ship.h" // Incluye definiciones de barcos
-
-
+#include "bs_ship.h"
 
 bool isShipHere(struct player *player, int index, int ship_cell, int fila, int columna) {
-    // Verifica si la parte del barco esta en la posicion (x, y)
     return player->ships[index].status[ship_cell][0] == fila
         && player->ships[index].status[ship_cell][1] == columna;
 }
@@ -13,58 +10,62 @@ bool isEnemyShipHere(struct player *player, int index, int ship_cell, struct pla
         && enemy->ships[index].status[ship_cell][CC_COLUMN] == player->prevColInput;
 }
 
-bool cell_is_intact_ship_cell(struct player *enemy, int index, int ship_cell) {
+bool is_intact_cell(struct player *enemy, int cc_Row, int cc_Col) {
+    if (enemy->board[cc_Row][cc_Col].status == SHIP_STER) return true;
+    if (enemy->board[cc_Row][cc_Col].status == SHIP_BODY) return true;
+    if (enemy->board[cc_Row][cc_Col].status == WATER) return true;
+    return false;
+}
+
+bool is_unshooted_cell_ship(struct player *enemy, int index, int ship_cell) {
     if (enemy->ships[index].status[ship_cell][CC_STATUS] == SHIP_STER) return true;
     if (enemy->ships[index].status[ship_cell][CC_STATUS] == SHIP_BODY) return true;
     return false;
 }
 
-void instant_sunk(struct player *player, int index, struct player *enemy) {
-    int i, j;
+bool is_sunk(struct player *player, struct player *enemy, int index) {
+    int i, cc_Row, cc_Col, ship_cell;
+    bool undamaged_found = false;
 
-    for (i = 0; i < BOARD_SIZE; i++) {
-        for (j = 0; j < BOARD_SIZE; j++) {
-            if (enemy->board[i][j].ship_id == index) {
-                if(cell_is_intact_ship_cell(enemy, index, enemy->board[i][j].ship_cell)) {
-                    enemy->board[i][j].status = SHIP_STER_D;
-                }
-                if (cell_is_intact_ship_cell(enemy, index, enemy->board[i][j].ship_cell)) {
-                    enemy->board[i][j].status = SHIP_BODY_D;
-                }
-                player->enemy_hit_parts++; // Incrementar partes alcanzadas
-                get_remain_fleet_cells(enemy); // Actualizar partes restantes
-                player->hitsInTurn++; // Incrementar aciertos por turno
-            }
+    for (i = 0; i < BOARD_SIZE * BOARD_SIZE; i++) {
+        cc_Row = i / BOARD_SIZE; // Row of the cell
+        cc_Col = i % BOARD_SIZE; // Column of the cell
+        ship_cell = enemy->board[cc_Row][cc_Col].ship_cell;
+        if (enemy->board[cc_Row][cc_Col].ship_id != index) continue; // Check if the cell belongs to the current ship
+
+        if (is_unshooted_cell_ship(enemy, index, ship_cell)) {
+            undamaged_found = true; // If there is an intact part, it is not sunk
+            break; // Exit the loop if an intact part is found
         }
     }
-    for (i = 0; i < enemy->ships[index].ship_size; i++) {
-        if (cell_is_intact_ship_cell(enemy, index, i)) {
-            enemy->ships[index].status[i][CC_STATUS] += 2; // Cambiar estado a dañado
+    if (!undamaged_found) {
+        if (enemy->ships[index].is_alive) { // Only count if it wasn't sunk before
+            enemy->ships[index].is_alive = false; // Mark ship as sunk
+            player->sunken_ships++;
         }
+        return true; // Return as sunk
     }
-    is_sunk(player, enemy, index); // Verifica si el barco está hundido
+    return false; // Return as not sunk
 }
 
-void is_sunk(struct player *player, struct player *enemy, int index) {
-    int i, j;
+void instant_sunk(struct player *player, int index, struct player *enemy) {
+    int i, cc_Row, cc_Col, ship_cell;
 
-    for (i = 0; i < BOARD_SIZE; i++) {
-        for (j = 0; j < BOARD_SIZE; j++) {
-            if (enemy->board[i][j].ship_id == index) {
-                if (cell_is_intact_ship_cell(enemy, index, enemy->board[i][j].ship_cell)) {
-                    enemy->ships[index].is_alive = true; // Marcar barco como hundido
-                    return; // Salir si se encuentra una parte intacta
-                }
-            }
+    for (i = 0; i < BOARD_SIZE * BOARD_SIZE; i++) {
+        cc_Row = i / BOARD_SIZE; // Row of the cell
+        cc_Col = i % BOARD_SIZE; // Column of the cell
+        ship_cell = enemy->board[cc_Row][cc_Col].ship_cell;
+        
+        if (!enemy->ships[index].is_alive) return;
+
+        if (enemy->board[cc_Row][cc_Col].ship_id == index && is_unshooted_cell_ship(enemy, index, ship_cell)) {
+            changeToDamaged(enemy, cc_Row, cc_Col, index, ship_cell); // Change status to damaged
+            player->enemy_hit_parts++; // Increment hit parts
+            player->hitsInTurn++; // Increment hits in turn
+            get_remain_fleet_cells(enemy); // Update remaining fleet cells
         }
     }
-    enemy->ships[index].is_alive = false; // Marcar barco como hundido
-    player->sunken_ships++;
-    printf("El %s (%d) enemigo ha sido hundido.\n", enemy->ships[index].ship_name, enemy->ships[index].ship_id + 1);
-    if (enemy->salvo_mode) {
-        enemy->salvo_mode = false; // Desactivar Salvo si estaba activo
-        printf("El modo Salvo enemigo se "); color_txt(INFO_COLOR); printf("desactiva.\n"); color_txt(DEFAULT_COLOR);
-    }
+    enemy->ships[index].is_alive = is_sunk(player, enemy, index); // Check if the ship has been sunk
 }
 
 void liberar_status(struct ship *barco) {
@@ -72,10 +73,10 @@ void liberar_status(struct ship *barco) {
         free(barco->status[i]);
     }
     free(barco->status);
-    barco->status = EMPTY; // Evitar puntero colgante
+    barco->status = EMPTY; // Avoid dangling pointer
 }
 
-void liberar_flota(struct player *player) {
+void free_fleet_memory(struct player *player) {
     for (int i = 0; i < NUM_SHIPS; i++) {
         liberar_status(&player->ships[i]);
     }

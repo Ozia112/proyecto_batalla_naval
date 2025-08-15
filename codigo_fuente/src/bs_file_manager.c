@@ -1,7 +1,7 @@
 #include "bs_file_manager.h"
-#include "cJSON.h" // Include cJSON for JSON handling
+#include "cJSON.h"
 
-// Reemplazar macros UPDATE_JSON_* para modificar valores in-place y conservar orden
+// Replace UPDATE_JSON_* macros to modify values in-place and preserve order
 #undef UPDATE_JSON_NUM
 #define UPDATE_JSON_NUM(name, value) \
     do { \
@@ -179,18 +179,18 @@ static int getArraysize(cJSON *array) {
 
 char encode_value(int v) {
     if(v == UNSET) return 'F';
-    return '0' + v; // Convertir a carácter numérico
+    return '0' + v; // Convert to numeric character
 }
 
 int decode_value(char c) {
     if (c == 'F') return UNSET;
-    return c - '0'; // Convertir de carácter numérico a entero
+    return c - '0'; // Convert from numeric character to integer
 }
 
 void encode_cell(int status, int ship_id, char* out) {
     out[0] = encode_value(status);
     out[1] = encode_value(ship_id);
-    out[2] = '\0'; // Asegurar que la cadena esté terminada
+    out[2] = '\0'; // Ensure the string is null-terminated
 }
 
 void decode_cell(char* in, int* status, int* ship_id) {
@@ -204,7 +204,7 @@ void createCardsFile() {
     test = fopen("configs/cards_config.json", "r");
     if (test) {
         fclose(test);
-        return; // El archivo ya existe, no es necesario crearlo de nuevo
+        return; // The file already exists, no need to create it again
     }
 
     file = fopen("configs/cards_config.json", "w");
@@ -234,12 +234,12 @@ void createCardsFile() {
         "\t\t\t\"card_id\": 3,\n"
         "\t\t\t\"card_name\": \"Bombardea una fila\",\n"
         "\t\t\t\"description\": \"Si tienes tu buque de 4 casillas a flote, elige un numero y bombardea esa fila entera.\",\n"
-        "\t\t\t\"weight\": 6\n"
+        "\t\t\t\"weight\": 1\n"
         "\t\t},{\n"
         "\t\t\t\"card_id\": 4,\n"
         "\t\t\t\"card_name\": \"Bombardea una columna\",\n"
         "\t\t\t\"description\": \"Si tienes tu buque de 5 casillas a flote, elige un numero y bombardea esa columna entera.\",\n"
-        "\t\t\t\"weight\": 6\n"
+        "\t\t\t\"weight\": 1\n"
         "\t\t},{\n"
         "\t\t\t\"card_id\": 5,\n"
         "\t\t\t\"card_name\": \"Revela\",\n"
@@ -283,7 +283,7 @@ void createShipsFile() {
     
     if (test) {
         fclose(test);
-        return; // El archivo ya existe, no es necesario crearlo de nuevo
+        return; // The file already exists, no need to create it again
     }
 
     file = fopen("configs/ships_config.json", "w");
@@ -402,6 +402,8 @@ void getCardsWeightState(struct player *player, cJSON *root) {
             UPDATE_STRUCT_NUM_OBJ(card, peso, card_obj, "weight");
         }
     }
+    if (player->cards[8].peso <= 0) player->salvo_loaded = false; // If the weight of the Salvo card is 0, it cannot be used
+    else player->salvo_loaded = true; // If the weight is greater than 0, it can be used
 }
 
 void getBoardState(struct player *player, cJSON *root) {
@@ -437,7 +439,7 @@ void getBoardState(struct player *player, cJSON *root) {
                     player->board[i][j].is_water = (player->board[i][j].status == WATER);
                     player->board[i][j].ship_cell = UNSET;
                 } else {
-                    // String inválida, inicializar como agua
+                    // Invalid string, initialize as water
                     player->board[i][j].status = WATER;
                     player->board[i][j].ship_id = UNSET;
                     player->board[i][j].is_water = true;
@@ -465,24 +467,24 @@ void getShipState(struct player *player, cJSON *root) {
             UPDATE_STRUCT_NUM_OBJ(ship, ship_id, ship_obj, "ship_id");
             UPDATE_STRUCT_STR(ship, ship_name, ship_obj, "ship_name");
             UPDATE_STRUCT_NUM_OBJ(ship, ship_size, ship_obj, "ship_size");
-            
-            // Validar que ship_size sea válido antes de asignar memoria
+
+            // Validate that ship_size is valid before allocating memory
             if (ship->ship_size <= 0 || ship->ship_size > 5) {
                 printf("Tamaño de barco inválido para ship_id %d: %d\n", i, ship->ship_size);
                 continue;
             }
             
-            // ship_direction es un char, así que tomamos el primer carácter de la cadena JSON
+            // ship_direction is a char, so we take the first character from the JSON string
             cJSON *dir_item = cJSON_GetObjectItem(ship_obj, "ship_direction");
             if (dir_item && cJSON_IsString(dir_item) && dir_item->valuestring && strlen(dir_item->valuestring) > 0)
                 ship->ship_direction = dir_item->valuestring[0];
                 
             UPDATE_STRUCT_BOOL_OBJ(ship, is_alive, ship_obj, "is_alive");
-            
-            // Procesar el array de status
+
+            // Process the status array
             status_array = cJSON_GetObjectItem(ship_obj, "status");
             if (status_array && cJSON_IsArray(status_array)) {
-                // Verificar si el status ya está inicializado, si no, inicializarlo
+                // Check if the status is already initialized, if not, initialize it
                 if (!ship->status) {
                     ship->status = (int **)malloc(ship->ship_size * sizeof(int *));
                     if (!ship->status) {
@@ -493,7 +495,7 @@ void getShipState(struct player *player, cJSON *root) {
                         ship->status[ship_cell] = (int *)malloc(3 * sizeof(int));
                         if (!ship->status[ship_cell]) {
                             printf("Error al asignar memoria para ship->status[%d]\n", ship_cell);
-                            // Liberar memoria ya asignada
+                            // Free previously allocated memory
                             for (int k = 0; k < ship_cell; k++) {
                                 free(ship->status[k]);
                             }
@@ -503,8 +505,8 @@ void getShipState(struct player *player, cJSON *root) {
                         }
                     }
                 }
-                
-                // Solo procesar si la asignación de memoria fue exitosa
+
+                // Process only if memory allocation was successful
                 if (ship->status) {
                     for (ship_cell = 0; ship_cell < ship->ship_size; ship_cell++) {
                         status_obj = cJSON_GetArrayItem(status_array, ship_cell);
@@ -583,7 +585,7 @@ void getPlayerState(struct player *player) {
         return;
     }
 
-    // Luego cargar el estado guardado
+    // Then load the saved state
     UPDATE_STRUCT_STR(player, player_name, root, "player_name");
     UPDATE_STRUCT_NUM(player, placed_ships, root, "placedShips");
     UPDATE_STRUCT_NUM(player, turn, root, "turn");
@@ -597,8 +599,8 @@ void getPlayerState(struct player *player) {
     UPDATE_STRUCT_NUM(player, prev_check_col, root, "prev_check_col");
     UPDATE_STRUCT_BOOL(player, salvo_mode, root, "salvo_mode");
     UPDATE_STRUCT_BOOL(player, upgrade_enable, root, "buff");
-    
-    // Funciones para obtener los arrays (ahora que las estructuras están inicializadas)
+
+    // Functions to get the arrays (now that the structures are initialized)
     getCardsWeightState(player, root);
     getBoardState(player, root);
     getShipState(player, root);
@@ -606,7 +608,7 @@ void getPlayerState(struct player *player) {
     getLastInputsState(player, root);
     
     cJSON_Delete(root);
-    printf_color(SUCCESS_COLOR, "Estado del jugador %d cargado correctamente.\n", player->player_index);
+    printf_color(SUCCESS_COLOR, DEFAULT, "Estado del jugador %d cargado correctamente.\n", player->player_index);
 }
 
 void save_ships_state(struct player *player, cJSON *root, FILE *file) {
@@ -833,13 +835,11 @@ void save_player_state(struct player *player) {
     cJSON_Delete(root);
 }
 
-void getBoardProperties(int *ship_ids,
-                        char ship_names[][MAX_NAME_LENGTH],
-                        int *ship_sizes) {
+void getBoardProperties(int *ship_ids, char ship_names[][MAX_NAME_LENGTH], int *ship_sizes) {
     cJSON *root, *array, *obj;
     int i, j, array_size;
-    
-    // Lectura de configuración de barcos
+
+    // Reading of ship configuration
     root = load_config_json_file("ships_config.json");
     array = cJSON_GetObjectItem(root, "ships_config");
     array_size = getArraysize(array);
@@ -1027,12 +1027,12 @@ void createPlayerFile(struct player *player) {
     fprintf(file, "}");
     fclose(file);
 
-    // Limpiar la memoria del JSON
+    // Free JSON memory
     cJSON_Delete(root_cards);
     cJSON_Delete(root_ships);
 
-    printf_color(SUCCESS_COLOR, "Archivo de jugador %d creado exitosamente.\n", player->player_index);
-    
+    printf_color(SUCCESS_COLOR, DEFAULT, "Archivo de jugador %d creado exitosamente.\n", player->player_index);
+
 }
 
 void delete_player_file(const struct player *player) {

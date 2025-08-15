@@ -4,14 +4,14 @@
 // Todas las librerias del proyecto
 #include "bs_common.h"
 #include "bs_utils.h"
-#include "bs_board.h"
-#include "bs_ship.h"
-#include "bs_cards.h"
-#include "bs_logic.h"
-#include "bs_ui.h"
-#include "bs_game.h"
-#include "bs_flow_card.h"
 #include "bs_file_manager.h" // Incluye funciones para manejar archivos de jugadores, barcos y cartas
+#include "bs_board.h"
+#include "bs_cards.h"
+#include "bs_flow_card.h"
+#include "bs_game.h"
+#include "bs_logic.h"
+#include "bs_ship.h"
+#include "bs_ui.h"
 #include "cJSON.h" // libreria para poder usar la funcion cJSON.
 #include <stdbool.h> // incluye definiciones de tipo booleano estándar
 #include <time.h> // libreria para poder usar la funcion time.
@@ -23,4 +23,5 @@
 #include <errno.h> // libreria para poder usar la funcion errno.
 #include <direct.h> // libreria para poder usar la funcion _mkdir.
 
+extern bool debugMode; // Declaración de la variable global
 #endif // MASTER_H

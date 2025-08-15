@@ -11,19 +11,19 @@ void main_menu(struct player *player1, struct player *player2);
 
 void rules();
 
-void get_name(struct player *player);
+void get_name(struct player *player, int player_index);
 
 void set_ships_screen(struct player *player, int index, struct player *enemy);
 
 void set_ships_flow(struct player *player, struct player *enemy);
 
-void printCurrentPlayerBoard(struct player *player, struct player *enemy);
+void printPlayerBoard(struct player *player, struct player *enemy);
 
 void getSetShipsCoords(struct player *player, int index, struct player *enemy);
 
 void currentPlayerWarScreen(struct player *player, struct player *enemy);
 
-void printCurrentPlayerWarBoard(struct player *player, struct player *enemy);
+void printPlayerWarBoard(struct player *player, struct player *enemy);
 
 void printEnemyFleetReport(struct player *player, struct player *enemy);
 
@@ -35,7 +35,7 @@ void printCardInfo(struct card *cards);
 
 void captureCoordToShot(struct player *player, struct player *enemy);
 
-void printPrevHitCoord(struct player *player);
+void printShootreport(struct player *player, struct player *enemy, int index);
 
 void printBombORCheckSucces(struct player *player);
 

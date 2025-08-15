@@ -6,6 +6,8 @@
 // Prototipos de funciones
 static void shot_flow(struct player *player, struct player *enemy, int shoots);
 
+static int search_index_ship(struct player *player, struct player *enemy);
+
 static void end_card_flow(struct player *player, struct player *enemy);
 
 void funcion_carta_0(struct player *player, struct player *enemy);
