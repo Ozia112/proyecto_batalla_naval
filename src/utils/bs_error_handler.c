@@ -44,7 +44,7 @@ void bs_error_log(ErrorCode code, const char* context) {
     
     // Temporalmente usar stderr para el error
     SetStdHandle(STD_OUTPUT_HANDLE, hStderr);
-    printf_color_wrapped("%s", full_message);
+    printf_colorW("%s", full_message);
     SetStdHandle(STD_OUTPUT_HANDLE, hStdout);
 }
 

@@ -176,7 +176,7 @@ static inline void format_color(int text_hex, int bg_hex, const char* format, ..
 }
 
 /* ========================================
-   FUNCIÓN PRINCIPAL: printf_color_wrapped
+   FUNCIÓN PRINCIPAL: printf_colorW
    ======================================== */
 static inline void printf_colorW(const char* format, ...) {
     // Obtener el texto formateado
@@ -286,8 +286,5 @@ static inline void return_line(int line_qty) {
     }
     fflush(stdout);
 }
-
-// Alias para compatibilidad
-#define printf_color_wrapped printf_colorW
 
 #endif // BS_CONSOLE_H
