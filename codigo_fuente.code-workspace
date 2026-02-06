@@ -1,26 +1,7 @@
 {
-	"folders": [
-		{
-			"path": "."
-		}
-	],
-	"settings": {
-		"files.associations": {
-			"bs_efectos_cartas.h": "c",
-			"time.h": "c",
-			"bs_logic.h": "c",
-			"bs_console_utils.h": "c",
-			"bs_ui.h": "c",
-			"stdlib.h": "c",
-			"string.h": "c",
-			"bs_ship.h": "c",
-			"windows.h": "c",
-			"bs_cards.h": "c",
-			"bs_board.h": "c",
-			"stdbool.h": "c",
-			"stdio.h": "c",
-			"bs_player.h": "c",
-			"bs_flow_card.h": "c"
-		}
-	}
+    "folders": [
+        {
+            "path": "."
+        }
+    ]
 }
